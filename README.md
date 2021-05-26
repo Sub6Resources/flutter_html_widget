@@ -48,42 +48,32 @@ A Flutter widget for rendering HTML and CSS as Flutter widgets.
   - [customRender](#customrender)
 
   - [onImageError](#onimageerror)
-  
-  - [onMathError](#onmatherror)
 
   - [onImageTap](#onimagetap)
 
   - [tagsList](#tagslist)
 
   - [style](#style)
-
-  - [navigationDelegateForIframe](#navigationdelegateforiframe)
-
-  - [customImageRender](#customimagerender)
-  
-    - [typedef ImageSourceMatcher (with examples)](#typedef-imagesourcematcher)
-    
-    - [typedef ImageRender (with examples)](#typedef-imagerender)
-    
-    - [Extended examples](#example-usages---customimagerender)
     
 - [Rendering Reference](#rendering-reference)
 
   - [Image](#image)
   
-  - [Iframe](#iframe)
+- [External Packages](#external-packages)
   
-  - [Audio](#audio)
+  - [`flutter_html_all`](#flutter_html_all)
   
-  - [Video](#video)
+  - [`flutter_html_audio`](#flutter_html_audio)
   
-  - [SVG](#svg)
+  - [`flutter_html_iframe`](#flutter_html_iframe)
   
-  - [MathML](#mathml)
+  - [`flutter_html_math`](#flutter_html_math)
   
-  - [Tex](#tex)
+  - [`flutter_html_svg`](#flutter_html_svg)
   
-  - [Table](#table)
+  - [`flutter_html_table`](#flutter_html_table)
+  
+  - [`flutter_html_video`](#flutter_html_video)
   
 - [Notes](#notes)
 
@@ -158,15 +148,12 @@ If you would like to modify or sanitize the HTML before rendering it, then `Html
 | `data` | The HTML data passed to the `Html` widget. This is required and cannot be null when using `Html()`. |
 | `document` | The DOM document passed to the `Html` widget. This is required and cannot be null when using `Html.fromDom()`. |
 | `onLinkTap` | A function that defines what the widget should do when a link is tapped. The function exposes the `src` of the link as a `String` to use in your implementation. |
-| `customRender` | A powerful API that allows you to customize everything when rendering a specific HTML tag. |
+| `customRenders` | A powerful API that allows you to customize everything when rendering a specific HTML tag. |
 | `onImageError` | A function that defines what the widget should do when an image fails to load. The function exposes the exception `Object` and `StackTrace` to use in your implementation. |
-| `omMathError` | A function that defines what the widget should do when a math fails to render. The function exposes the parsed Tex `String`, as well as the error and error with type from `flutter_math` as a `String`. |
 | `shrinkWrap` | A `bool` used while rendering different widgets to specify whether they should be shrink-wrapped or not, like `ContainerSpan` |
 | `onImageTap` | A function that defines what the widget should do when an image is tapped. The function exposes the `src` of the image as a `String` to use in your implementation. |
 | `tagsList` | A list of elements the `Html` widget should render. The list should contain the tags of the HTML elements you wish to include.  |
 | `style` | A powerful API that allows you to customize the style that should be used when rendering a specific HTMl tag. |
-| `navigationDelegateForIframe` | Allows you to set the `NavigationDelegate` for the `WebView`s of all the iframes rendered by the `Html` widget. |
-| `customImageRender` | A powerful API that allows you to fully customize how images are loaded. |
 
 ### Getters:
 
@@ -244,17 +231,21 @@ Widget html = Html(
 
 Inner links (such as `<a href="#top">Back to the top</a>` will work out of the box by scrolling the viewport, as long as your `Html` widget is wrapped in a scroll container such as a `SingleChildScrollView`.
 
-### customRender:
+### customRenders:
 
 A powerful API that allows you to customize everything when rendering a specific HTML tag. This means you can change the default behaviour or add support for HTML elements that aren't supported natively. You can also make up your own custom tags in your HTML!
 
-`customRender` accepts a `Map<String, CustomRender>`. The `CustomRender` type is a function that requires a `Widget` or `InlineSpan` to be returned. It exposes `RenderContext` and the `Widget` that would have been rendered by `Html` without a `customRender` defined. The `RenderContext` contains the build context, styling and the HTML element, with attrributes and its subtree,.
+`customRender` accepts a `Map<CustomRenderMatcher, CustomRender>`. 
 
-To use this API, set the key as the tag of the HTML element you wish to provide a custom implementation for, and create a function with the above parameters that returns a `Widget` or `InlineSpan`.
+`CustomRenderMatcher` is a function that requires a `bool` to be returned. It exposes the `RenderContext` which provides `BuildContext` and access to the HTML tree.
 
+The `CustomRender` class has two constructors: `CustomRender.fromWidget()` and `CustomRender.fromInlineSpan()`. Both require a `<Widget/InlineSpan> Function(RenderContext, Function())`. The `Function()` argument is a function that will provide you with the element's children when needed.
+
+To use this API, create a matching function and an instance of `CustomRender`. 
+
+#### Example Usages - customRenders:
 Note: If you add any custom tags, you must add these tags to the [`tagsList`](#tagslist) parameter, otherwise they will not be rendered. See below for an example.
 
-#### Example Usages - customRender:
 1. Simple example - rendering custom HTML tags
 
 ```dart
@@ -264,25 +255,27 @@ Widget html = Html(
   <flutter></flutter>
   <flutter horizontal></flutter>
   """,
-  customRender: {
-      "bird": (RenderContext context, Widget child) {
-        return TextSpan(text: "🐦");
-      },
-      "flutter": (RenderContext context, Widget child) {
-        return FlutterLogo(
-          style: (context.tree.element!.attributes['horizontal'] != null)
-              ? FlutterLogoStyle.horizontal
-              : FlutterLogoStyle.markOnly,
-          textColor: context.style.color,
-          size: context.style.fontSize!.size! * 5,
-        );
-      },
+  customRenders: {
+      birdMatcher(): CustomRender.fromInlineSpan(inlineSpan: (context, buildChildren) => TextSpan(text: "🐦")),
+      flutterMatcher(): CustomRender.fromWidget(widget: (context, buildChildren) => FlutterLogo(
+        style: (context.tree.element!.attributes['horizontal'] != null)
+            ? FlutterLogoStyle.horizontal
+            : FlutterLogoStyle.markOnly,
+        textColor: context.style.color!,
+        size: context.style.fontSize!.size! * 5,
+      )),
     },
   tagsList: Html.tags..addAll(["bird", "flutter"]),
 );
+
+CustomRenderMatcher birdMatcher() => (context) => context.tree.element?.localName == 'bird';
+
+CustomRenderMatcher flutterMatcher() => (context) => context.tree.element?.localName == 'flutter';
 ```
 
 2. Complex example - wrapping the default widget with your own, in this case placing a horizontal scroll around a (potentially too wide) table.
+
+Note: Requires the [`flutter_html_table`](#flutter_html_table) package.
 
 <details><summary>View code</summary>
 
@@ -296,15 +289,17 @@ Widget html = Html(
     <tr> <td>\90</td> <td>\$60</td> <td>\$80</td> <td>\$80</td> <td>\$100</td> <td>\$160</td> <td>\$150</td> <td>\$110</td> <td>\$100</td> <td>\$60</td> <td>\$30</td> <td>\$80</td> </tr>
   </table>
   """,
-  customRender: {
-    "table": (context, child) {
+  customRenders: {
+    tableMatcher(): CustomRender.fromWidget(widget: (context, child) {
       return SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: (context.tree as TableLayoutElement).toWidget(context),
       );
-    }
+    }),
   },
 );
+
+CustomRenderMatcher tableMatcher() => (context) => context.tree.element?.localName == "table";
 ```
 
 </details>
@@ -321,44 +316,53 @@ Widget html = Html(
    <h3>YouTube iframe:</h3>
    <iframe src="https://www.youtube.com/embed/tgbNymZ7vqY"></iframe>
    """,
-   customRender: {
-      "iframe": (RenderContext context, Widget child) {
-         final attrs = context.tree.element?.attributes;
-         if (attrs != null) {
-           double? width = double.tryParse(attrs['width'] ?? "");
-           double? height = double.tryParse(attrs['height'] ?? "");
-           return Container(
-             width: width ?? (height ?? 150) * 2,
-             height: height ?? (width ?? 300) / 2,
-             child: WebView(
-                initialUrl: attrs['src'] ?? "about:blank",
-                javascriptMode: JavascriptMode.unrestricted,
-                //no need for scrolling gesture recognizers on embedded youtube, so set gestureRecognizers null
-                //on other iframe content scrolling might be necessary, so use VerticalDragGestureRecognizer
-                gestureRecognizers: attrs['src'] != null && attrs['src']!.contains("youtube.com/embed") ? null : [
-                  Factory(() => VerticalDragGestureRecognizer())
-                ].toSet(),
-                navigationDelegate: (NavigationRequest request) async {
-                //no need to load any url besides the embedded youtube url when displaying embedded youtube, so prevent url loading
-                //on other iframe content allow all url loading
-                  if (attrs['src'] != null && attrs['src']!.contains("youtube.com/embed")) {
-                    if (!request.url.contains("youtube.com/embed")) {
-                      return NavigationDecision.prevent;
-                    } else {
-                      return NavigationDecision.navigate;
-                    }
-                  } else {
-                    return NavigationDecision.navigate;
-                  }
-                },
-              ),
-            );
-         } else {
-           return Container(height: 0);
-         }
-       }
-     }
+   customRenders: {
+      iframeYT(): CustomRender.fromWidget(widget: (context, buildChildren) {
+        double? width = double.tryParse(context.tree.attributes['width'] ?? "");
+        double? height = double.tryParse(context.tree.attributes['height'] ?? "");
+        return Container(
+          width: width ?? (height ?? 150) * 2,
+          height: height ?? (width ?? 300) / 2,
+          child: WebView(
+            initialUrl: context.tree.attributes['src']!,
+            javascriptMode: JavascriptMode.unrestricted,
+            navigationDelegate: (NavigationRequest request) async {
+              //no need to load any url besides the embedded youtube url when displaying embedded youtube, so prevent url loading
+              if (!request.url.contains("youtube.com/embed")) {
+                return NavigationDecision.prevent;
+              } else {
+                return NavigationDecision.navigate;
+              }
+            },
+          ),
+        );
+      }),
+      iframeOther(): CustomRender.fromWidget(widget: (context, buildChildren) {
+        double? width = double.tryParse(context.tree.attributes['width'] ?? "");
+        double? height = double.tryParse(context.tree.attributes['height'] ?? "");
+        return Container(
+          width: width ?? (height ?? 150) * 2,
+          height: height ?? (width ?? 300) / 2,
+          child: WebView(
+            initialUrl: context.tree.attributes['src'],
+            javascriptMode: JavascriptMode.unrestricted,
+            //on other iframe content scrolling might be necessary, so use VerticalDragGestureRecognizer
+            gestureRecognizers: [
+              Factory(() => VerticalDragGestureRecognizer())
+            ].toSet(),
+          ),
+        );
+      }),
+      iframeNull(): CustomRender.fromWidget(widget: (context, buildChildren) => Container(height: 0, width: 0)),
+   }
  );
+
+CustomRenderMatcher iframeYT() => (context) => context.tree.element?.attributes['src']?.contains("youtube.com/embed") ?? false;
+
+CustomRenderMatcher iframeOther() => (context) => !(context.tree.element?.attributes['src']?.contains("youtube.com/embed") 
+  ?? context.tree.element?.attributes['src'] == null);
+
+CustomRenderMatcher iframeNull() => (context) => context.tree.element?.attributes['src'] == null;
 ```
 </details>
 
@@ -375,24 +379,6 @@ Widget html = Html(
   data: """<img alt='Alt Text of an intentionally broken image' src='https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_92x30d'/>""",
   onImageError: (Exception exception, StackTrace stackTrace) {
     FirebaseCrashlytics.instance.recordError(exception, stackTrace);
-  },
-);
-```
-
-### onMathError:
-
-A function that defines what the widget should do when a math fails to render. The function exposes the parsed Tex `String`, as well as the error and error with type from `flutter_math` as a `String`.
-
-#### Example Usage - onMathError:
-
-```dart
-Widget html = Html(
-  data: """<!-- Some MathML string that fails to parse -->""",
-  onMathError: (String parsedTex, String error, String errorWithType) {
-    //your logic here. A Widget must be returned from this function:
-    return Text(error);
-    //you can also try and fix the parsing yourself:
-    return Math.tex(correctedParsedTex);
   },
 );
 ```
@@ -508,30 +494,7 @@ Widget html = Html(
 
 More examples and in-depth details available [here](https://github.com/Sub6Resources/flutter_html/wiki/Style).
 
-### navigationDelegateForIframe:
-
-Allows you to set the `NavigationDelegate` for the `WebView`s of all the iframes rendered by the `Html` widget. You can block or allow the loading of certain URLs with the `NavigationDelegate`.
-
-#### Example Usage - navigationDelegateForIframe:
-
-```dart
-Widget html = Html(
-  data: """
-   <h3>YouTube iframe:</h3>
-   <iframe src="https://google.com"></iframe>
-   <h3>Google iframe:</h3>
-   <iframe src="https://www.youtube.com/embed/tgbNymZ7vqY"></iframe>
-   """,
-  navigationDelegateForIframe: (NavigationRequest request) {
-    if (request.url.contains("google.com/images")) {
-      return NavigationDecision.prevent;
-    } else {
-      return NavigationDecision.navigate;
-    }
-  },
-);
-```
-
+<!---
 ### customImageRender:
 
 A powerful API that allows you to customize what the `Html` widget does when rendering an image, down to the most minute detail.
@@ -708,7 +671,7 @@ Widget html = Html(
 
 The above example has a matcher that checks for either a class or an id, and then returns two different widgets based on whether a class was matched or an id was matched. 
 
-The sky is the limit when using the custom image renders. You can make it as granular as you want, or as all-encompassing as you want, and you have full control of everything. Plus you get the package's style parsing to use in your custom widgets, so your code looks neat and readable!
+The sky is the limit when using the custom image renders. You can make it as granular as you want, or as all-encompassing as you want, and you have full control of everything. Plus you get the package's style parsing to use in your custom widgets, so your code looks neat and readable!--->
 
 ## Rendering Reference
 
@@ -716,22 +679,43 @@ This section will describe how certain HTML elements are rendered by this packag
 
 ### Image
 
-This package currently has support for base64 images, asset images, network SVGs inside an `<img>`, and network images.
+This package currently has support for base64 images, asset images, and network images.
 
 The package uses the `src` of the image to determine which of the above types to render. The order is as follows:
 1. If the `src` is null, render the alt text of the image, if any.
 2. If the `src` starts with "data:image" and contains "base64," (this indicates the image data is indeed base64), render an `Image.memory` from the base64 data.
 3. If the `src` starts with "asset:", render an `Image.asset` from the path in the `src`.
-4. If the `src` ends with ".svg", render a `SvgPicture.network` (from the [`flutter_svg`](https://pub.dev/packages/flutter_svg) package)
-5. Otherwise, just render an `Image.network`.
+4. Otherwise, just render an `Image.network`.
 
 If the rendering of any of the above fails, the package will fall back to rendering the alt text of the image, if any.
 
 Currently the package only considers the width, height, src, and alt text while rendering an image.
 
-Note that there currently is no support for SVGs either in base64 format or asset format.
+If you would like to support SVGs in an `<img>`, you should use the [`flutter_html_svg`](#flutter_html_svg) package which provides support for base64, asset, and network SVGs.
 
-### Iframe
+## External Packages
+
+### `flutter_html_all`
+
+This package is simply a convenience package that exports all the other external packages below. You should use this if you plan to activate all the renders that require external dependencies.
+
+### `flutter_html_audio`
+
+This package renders audio elements using the [`chewie_audio`](https://pub.dev/packages/chewie_audio) and the [`video_player`](https://pub.dev/packages/video_player) plugin.
+
+The package considers the attributes `controls`, `loop`, `src`, `autoplay`, `width`, and `muted` when rendering the audio widget.
+
+#### Registering the `CustomRender`:
+
+```dart
+Widget html = Html(
+  customRenders: {
+    audioMatcher(): audioRender(),
+  }
+);
+```
+
+### `flutter_html_iframe`
 
 This package renders iframes using the [`webview_flutter`](https://pub.dev/packages/webview_flutter) plugin. 
 
@@ -739,41 +723,77 @@ When rendering iframes, the package considers the width, height, and sandbox att
 
 Sandbox controls the JavaScript mode of the webview - a value of `null` or `allow-scripts` will set `javascriptMode: JavascriptMode.unrestricted`, otherwise it will set `javascriptMode: JavascriptMode.disabled`.
 
-You can set the `navigationDelegate` of the webview with the `navigationDelegateForIframe` property - see [here](#navigationdelegateforiframe) for more details. 
+#### Registering the `CustomRender`:
 
-### Audio
+```dart
+Widget html = Html(
+  customRenders: {
+    iframeMatcher(): iframeRender(),
+  }
+);
+```
 
-This package renders audio elements using the [`chewie_audio`](https://pub.dev/packages/chewie_audio) plugin.
+You can set the `navigationDelegate` of the webview with the `navigationDelegate` property on `iframeRender`. This allows you to block or allow the loading of certain URLs.
 
-The package considers the attributes `controls`, `loop`, `src`, `autoplay`, `width`, and `muted` when rendering the audio widget.
+#### `NavigationDelegate` example:
 
-### Video
+```dart
+Widget html = Html(
+  customRenders: {
+    iframeMatcher(): iframeRender(navigationDelegate: (NavigationRequest request) {
+      if (request.url.contains("google.com/images")) {
+        return NavigationDecision.prevent;
+      } else {
+        return NavigationDecision.navigate;
+      }
+    }),
+  }
+);
+```
 
-This package renders video elements using the [`chewie`](https://pub.dev/packages/chewie) plugin. 
+### `flutter_html_math`
 
-The package considers the attributes `controls`, `loop`, `src`, `autoplay`, `poster`, `width`, `height`, and `muted` when rendering the video widget.
+This package renders MathML elements using the [`flutter_math_fork`](https://pub.dev/packages/flutter_math_fork) plugin.
 
-### SVG
-
-This package renders svg elements using the [`flutter_svg`](https://pub.dev/packages/flutter_svg) plugin.
-
-When rendering SVGs, the package takes the SVG data within the `<svg>` tag and passes it to `flutter_svg`. The `width` and `height` attributes are considered while rendering, if given.
-
-### MathML
-
-This package renders MathML elements using the [`flutter_math`](https://pub.dev/packages/flutter_math) plugin.
-
-When rendering MathML, the package takes the MathML data within the `<math>` tag and tries to parse it to Tex. Then, it will pass the parsed string to `flutter_math`.
+When rendering MathML, the package takes the MathML data within the `<math>` tag and tries to parse it to Tex. Then, it will pass the parsed string to `flutter_math_fork`.
 
 Because this package is parsing MathML to Tex, it may not support some functionalities. The current list of supported tags can be found [above](#currently-supported-html-tags), but some of these only have partial support at the moment.
 
-If the parsing errors, you can use the [onMathError](#onmatherror) API to catch the error and potentially fix it on your end - you can analyze the error and the parsed string, and finally return a new instance of `Math.tex()` with the corrected Tex string.
+#### Registering the `CustomRender`:
+
+```dart
+Widget html = Html(
+  customRenders: {
+    mathMatcher(): mathRender(),
+  }
+);
+```
+
+If the parsing errors, you can use the `onMathError` property of `mathRender` to catch the error and potentially fix it on your end.
+
+The function exposes the parsed Tex `String`, as well as the error and error with type from `flutter_math_fork` as a `String`.
+
+You can analyze the error and the parsed string, and finally return a new instance of `Math.tex()` with the corrected Tex string.
+
+#### `onMathError` example:
+
+```dart
+Widget html = Html(
+  customRenders: {
+    mathMatcher(): mathRender(onMathError: (tex, exception, exceptionWithType) {
+      print(exception);
+      //optionally try and correct the Tex string here
+      return Text(exception);
+    }),
+  }
+);
+```
 
 If you'd like to see more MathML features, feel free to create a PR or file a feature request!
 
-### Tex
+#### Tex
 
-If you have a Tex string you'd like to render inside your HTML you can do that using the same [`flutter_math`](https://pub.dev/packages/flutter_math) plugin.
+If you have a Tex string you'd like to render inside your HTML you can do that using the same [`flutter_math_fork`](https://pub.dev/packages/flutter_math_fork) plugin.
 
 Use a custom tag inside your HTML (an example could be `<tex>`), and place your **raw** Tex string inside.
  
@@ -782,23 +802,74 @@ Then, use the `customRender` parameter to add the widget to render Tex. It could
 ```dart
 Widget htmlWidget = Html(
   data: r"""<tex>i\hbar\frac{\partial}{\partial t}\Psi(\vec x,t) = -\frac{\hbar}{2m}\nabla^2\Psi(\vec x,t)+ V(\vec x)\Psi(\vec x,t)</tex>""",
-  customRender: {
-    "tex": (_, __, ___, element) => Math.tex(
-      element.text,
+  customRenders: {
+    texMatcher(): CustomRender.fromWidget(widget: (context, buildChildren) => Math.tex(
+      context.tree.element?.innerHtml ?? '',
+      mathStyle: MathStyle.display,
+      textStyle: context.style.generateTextStyle(),
       onErrorFallback: (FlutterMathException e) {
-        //return your error widget here e.g.
+        //optionally try and correct the Tex string here
         return Text(e.message);
       },
-    ),
+    )),
+  }
+);
+
+CustomRenderMatcher texMatcher() => (context) => context.tree.element?.localName == 'tex';
+```
+
+### `flutter_html_svg`
+
+This package renders svg elements using the [`flutter_svg`](https://pub.dev/packages/flutter_svg) plugin.
+
+When rendering SVGs, the package takes the SVG data within the `<svg>` tag and passes it to `flutter_svg`. The `width` and `height` attributes are considered while rendering, if given.
+
+The package also exposes a few ways to render SVGs within an `<img>` tag, specifically base64 SVGs, asset SVGs, and network SVGs.
+
+#### Registering the `CustomRender`:
+
+```dart
+Widget html = Html(
+  customRenders: {
+    svgTagMatcher(): svgTagRender(),
+    svgDataUriMatcher(): svgDataImageRender(),
+    svgAssetUriMatcher(): svgAssetImageRender(),
+    svgNetworkSourceMatcher(): svgNetworkImageRender(),
   }
 );
 ```
 
-### Table
+### `flutter_html_table`
 
 This package renders table elements using the [`flutter_layout_grid`](https://pub.dev/packages/flutter_layout_grid) plugin.
 
 When rendering table elements, the package tries to calculate the best fit for each element and size its cell accordingly. `Rowspan`s and `colspan`s are considered in this process, so cells that span across multiple rows and columns are rendered as expected. Heights are determined intrinsically to maintain an optimal aspect ratio for the cell.
+
+#### Registering the `CustomRender`:
+
+```dart
+Widget html = Html(
+  customRenders: {
+    tableMatcher(): tableRender(),
+  }
+);
+```
+
+### `flutter_html_video`
+
+This package renders video elements using the [`chewie`](https://pub.dev/packages/chewie) and the [`video_player`](https://pub.dev/packages/video_player) plugin. 
+
+The package considers the attributes `controls`, `loop`, `src`, `autoplay`, `poster`, `width`, `height`, and `muted` when rendering the video widget.
+
+#### Registering the `CustomRender`:
+
+```dart
+Widget html = Html(
+  customRenders: {
+    videoMatcher(): videoRender(),
+  }
+);
+```
 
 ## Notes
 
@@ -807,13 +878,13 @@ When rendering table elements, the package tries to calculate the best fit for e
 ```dart
 Widget row = Row(
    children: [
-	Expanded(
-	    child: Html(
-          shrinkWrap: true,
-          //other params
-        )
-	),
-	//whatever other widgets
+        Expanded(
+            child: Html(
+              shrinkWrap: true,
+              //other params
+            )
+        ),
+	    //whatever other widgets
    ]
 );
 ```

@@ -27,7 +27,7 @@ void testNewParser() {
     HtmlParser.parseHTML("<b>Hello, World!</b>");
   });
 
-  test("lexDomTree works correctly", () {
+  /*test("lexDomTree works correctly", () {
     StyledElement tree = HtmlParser.lexDomTree(
       HtmlParser.parseHTML(
           "Hello! <b>Hello, World!</b><i>Hello, New World!</i>"),
@@ -67,9 +67,9 @@ void testNewParser() {
       null,
     );
     print(tree.toString());
-  });
+  });*/
 
-  test("Video Content Source Parser works correctly", () {
+  /*test("Video Content Source Parser works correctly", () {
     ReplacedElement videoContentElement = parseReplacedElement(
       HtmlParser.parseHTML("""
       <video width="320" height="240" controls>
@@ -108,7 +108,7 @@ void testNewParser() {
       expect(audioContentElement.src, hasLength(2),
           reason: "Not enough sources...");
     }
-  });
+  });*/
 
   test("Test style merging", () {
     Style style1 = Style(

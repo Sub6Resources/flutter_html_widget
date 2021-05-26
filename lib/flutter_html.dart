@@ -1,22 +1,18 @@
 library flutter_html;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_html/custom_render.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_html/html_parser.dart';
-import 'package:flutter_html/image_render.dart';
 import 'package:flutter_html/src/html_elements.dart';
 import 'package:flutter_html/style.dart';
 import 'package:html/dom.dart' as dom;
-import 'package:webview_flutter/webview_flutter.dart';
 
 //export render context api
 export 'package:flutter_html/html_parser.dart';
 //export render context api
 export 'package:flutter_html/html_parser.dart';
-//export image render api
-export 'package:flutter_html/image_render.dart';
-//export image render api
-export 'package:flutter_html/image_render.dart';
+export 'package:flutter_html/custom_render.dart';
 export 'package:flutter_html/src/anchor.dart';
 export 'package:flutter_html/src/anchor.dart';
 export 'package:flutter_html/src/interactable_element.dart';
@@ -65,18 +61,15 @@ class Html extends StatelessWidget {
     GlobalKey? anchorKey,
     required this.data,
     this.onLinkTap,
-    this.customRender = const {},
-    this.customImageRenders = const {},
+    this.customRenders = const {},
     this.onCssParseError,
     this.onImageError,
-    this.onMathError,
     this.shrinkWrap = false,
     this.onImageTap,
     this.tagsList = const [],
     this.style = const {},
-    this.navigationDelegateForIframe,
-  })  : document = null,
-        assert(data != null),
+  }) : document = null,
+        assert (data != null),
         _anchorKey = anchorKey ?? GlobalKey(),
         super(key: key);
 
@@ -85,17 +78,14 @@ class Html extends StatelessWidget {
     GlobalKey? anchorKey,
     @required this.document,
     this.onLinkTap,
-    this.customRender = const {},
-    this.customImageRenders = const {},
+    this.customRenders = const {},
     this.onCssParseError,
     this.onImageError,
-    this.onMathError,
     this.shrinkWrap = false,
     this.onImageTap,
     this.tagsList = const [],
     this.style = const {},
-    this.navigationDelegateForIframe,
-  })  : data = null,
+  }) : data = null,
         assert(document != null),
         _anchorKey = anchorKey ?? GlobalKey(),
         super(key: key);
@@ -112,19 +102,11 @@ class Html extends StatelessWidget {
   /// A function that defines what to do when a link is tapped
   final OnTap? onLinkTap;
 
-  /// An API that allows you to customize the entire process of image rendering.
-  /// See the README for more details.
-  final Map<ImageSourceMatcher, ImageRender> customImageRenders;
-
   /// A function that defines what to do when CSS fails to parse
   final OnCssParseError? onCssParseError;
 
   /// A function that defines what to do when an image errors
   final ImageErrorListener? onImageError;
-
-  /// A function that defines what to do when either <math> or <tex> fails to render
-  /// You can return a widget here to override the default error widget.
-  final OnMathError? onMathError;
 
   /// A parameter that should be set when the HTML widget is expected to be
   /// flexible
@@ -138,22 +120,18 @@ class Html extends StatelessWidget {
 
   /// Either return a custom widget for specific node types or return null to
   /// fallback to the default rendering.
-  final Map<String, CustomRender> customRender;
+  final Map<CustomRenderMatcher, CustomRender> customRenders;
 
   /// An API that allows you to override the default style for any HTML element
   final Map<String, Style> style;
-
-  /// Decides how to handle a specific navigation request in the WebView of an
-  /// Iframe. It's necessary to use the webview_flutter package inside the app
-  /// to use NavigationDelegate.
-  final NavigationDelegate? navigationDelegateForIframe;
 
   static List<String> get tags => new List<String>.from(STYLED_ELEMENTS)
     ..addAll(INTERACTABLE_ELEMENTS)
     ..addAll(REPLACED_ELEMENTS)
     ..addAll(LAYOUT_ELEMENTS)
     ..addAll(TABLE_CELL_ELEMENTS)
-    ..addAll(TABLE_DEFINITION_ELEMENTS);
+    ..addAll(TABLE_DEFINITION_ELEMENTS)
+    ..addAll(EXTERNAL_ELEMENTS);
 
   @override
   Widget build(BuildContext context) {
@@ -170,15 +148,12 @@ class Html extends StatelessWidget {
         onImageTap: onImageTap,
         onCssParseError: onCssParseError,
         onImageError: onImageError,
-        onMathError: onMathError,
         shrinkWrap: shrinkWrap,
         style: style,
-        customRender: customRender,
-        imageRenders: {}
-          ..addAll(customImageRenders)
-          ..addAll(defaultImageRenders),
+        customRenders: {}
+          ..addAll(customRenders)
+          ..addAll(defaultRenders),
         tagsList: tagsList.isEmpty ? Html.tags : tagsList,
-        navigationDelegateForIframe: navigationDelegateForIframe,
       ),
     );
   }
