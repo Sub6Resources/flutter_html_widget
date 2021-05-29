@@ -56,6 +56,7 @@ class HtmlParser extends StatelessWidget {
   final List<String> tagsList;
   final NavigationDelegate? navigationDelegateForIframe;
   final OnTap? _onAnchorTap;
+  final Html root;
 
   HtmlParser({
     required this.key,
@@ -71,7 +72,8 @@ class HtmlParser extends StatelessWidget {
     required this.imageRenders,
     required this.tagsList,
     required this.navigationDelegateForIframe,
-  }): this._onAnchorTap = key != null ? _handleAnchorTap(key, onLinkTap): null, super(key: key);
+    required this.root,
+  }) : this._onAnchorTap = key != null ? _handleAnchorTap(key, onLinkTap): null, super(key: key);
 
   @override
   Widget build(BuildContext context) {

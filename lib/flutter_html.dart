@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_html/html_parser.dart';
 import 'package:flutter_html/image_render.dart';
 import 'package:flutter_html/src/html_elements.dart';
+import 'package:flutter_html/src/utils.dart';
 import 'package:flutter_html/style.dart';
 import 'package:html/dom.dart' as dom;
 import 'package:webview_flutter/webview_flutter.dart';
@@ -155,6 +156,20 @@ class Html extends StatelessWidget {
     ..addAll(TABLE_CELL_ELEMENTS)
     ..addAll(TABLE_DEFINITION_ELEMENTS);
 
+  final InternalControllers controllers = InternalControllers();
+
+  void dispose() {
+    controllers.chewieAudioControllers.forEach((element) {
+      element.dispose();
+    });
+    controllers.chewieControllers.forEach((element) {
+      element.dispose();
+    });
+    controllers.videoPlayerControllers.forEach((element) {
+      element.dispose();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final dom.Document doc =
@@ -179,6 +194,7 @@ class Html extends StatelessWidget {
           ..addAll(defaultImageRenders),
         tagsList: tagsList.isEmpty ? Html.tags : tagsList,
         navigationDelegateForIframe: navigationDelegateForIframe,
+        root: this,
       ),
     );
   }
